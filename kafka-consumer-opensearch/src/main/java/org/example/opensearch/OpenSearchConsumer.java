@@ -1,5 +1,6 @@
 package org.example.opensearch;
 
+import com.google.gson.JsonParser;
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
@@ -33,7 +34,7 @@ import java.util.Properties;
 /**
  * @author juandiegoespinosasantos@gmail.com
  * @version Jun 16, 2023
- * @since 11
+ * @since 17
  */
 public class OpenSearchConsumer {
 
@@ -66,8 +67,13 @@ public class OpenSearchConsumer {
                 LOG.info("Received {} records", records.count());
 
                 for (ConsumerRecord<String, String> record : records) {
+//                    String id = record.topic() + "_" + record.partition() + "_" + record.offset();
+                    String id = extractId(record.value());
+
                     try {
-                        IndexRequest indexRequest = new IndexRequest("wikimedia").source(record.value(), XContentType.JSON);
+                        IndexRequest indexRequest = new IndexRequest("wikimedia")
+                                .id(id)
+                                .source(record.value(), XContentType.JSON);
                         IndexResponse response = openSearchClient.index(indexRequest, RequestOptions.DEFAULT);
 
                         LOG.info(response.getId());
@@ -117,5 +123,14 @@ public class OpenSearchConsumer {
         }
 
         return new RestHighLevelClient(restClientBuilder);
+    }
+
+    private static String extractId(final String jsonValue) {
+        return JsonParser.parseString(jsonValue)
+                .getAsJsonObject()
+                .get("meta")
+                .getAsJsonObject()
+                .get("id")
+                .getAsString();
     }
 }
